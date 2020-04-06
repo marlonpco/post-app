@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Post } from '../post.model';
 import { PostService } from '../post.service';
 import { Subscription } from 'rxjs';
+import { PageEvent } from '@angular/material';
 
 @Component({
   selector: 'app-post-list',
@@ -9,22 +10,24 @@ import { Subscription } from 'rxjs';
   styleUrls: ['./post-list.component.css']
 })
 export class PostListComponent implements OnInit, OnDestroy {
-  // posts = [
-  //   {title: 'First Post', content: 'This is the 1st post\'s content'},
-  //   {title: 'Second Post', content: 'This is the 2nd post\'s content'},
-  //   {title: 'Third Post', content: 'This is the 3rd post\'s content'}
-  // ];
-
   posts: Post[] = [];
   private postSubscription: Subscription;
+  public isLoading: boolean = false;
+  public totalPost = 10;
+  public postPerPage = 2;
+  public pageSizeOptions = [1, 2, 5, 10];
+  public currentPage = 1;
 
   constructor(private _postsService: PostService) {}
 
   ngOnInit(){
-    this._postsService.getPosts();
+    this.isLoading = true;
+    this._postsService.getPosts(this.postPerPage, this.currentPage);
     this.postSubscription = this._postsService.getPostUpdatedListener()
-      .subscribe((data: Post[]) => {
-          this.posts = data;
+      .subscribe((data) => {
+          this.isLoading = false;
+          this.posts = data.posts;
+          this.totalPost = data.postsCount;
         }
       );
   }
@@ -34,7 +37,21 @@ export class PostListComponent implements OnInit, OnDestroy {
   }
 
   onDelete(postId: string){
+    this.isLoading = true;
     this._postsService.deletePost(postId);
   }
 
+  onPageChange(pageData: PageEvent){
+    this.isLoading = true;
+    this.currentPage = pageData.pageIndex + 1;
+    this.postPerPage = pageData.pageSize;
+    this._postsService.getPosts(this.postPerPage, this.currentPage);
+  }
+
+  updatePageElements(){
+    this._postsService.getPostsTotalCount().subscribe((data) => {
+      this.totalPost = data.size;
+      this._postsService.getPosts(this.postPerPage, this.currentPage);
+    });
+  }
 }

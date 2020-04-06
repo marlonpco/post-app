@@ -1,30 +1,66 @@
 const express = require('express');
+const multer = require('multer');
 
 const Post = require('../models/post');
 
 const router = express.Router();
 
-// routes - '/api/posts';
+const MIME_TYPE_MAP = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg'
+};
 
-router.post('', (req, res, next) => {
+const storageConfiguration = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const isValid = MIME_TYPE_MAP[file.mimetype];
+    let error = null;
+    if(!isValid){
+      error = new Error('Invalid mime type');;
+    }
+    cb(error, 'backend/images');
+  },
+  filename: (req, file, cb) => {
+    const name = file.originalname.toLowerCase().split(' ').join('-');
+    const extension = MIME_TYPE_MAP[file.mimetype];
+    let filename = name + '-' + Date.now() + '.' + extension;
+    cb(null, filename);
+  }
+});
+
+// routes - '/api/posts';
+router.post('', multer({storage: storageConfiguration}).single('image'), (req, res, next) => {
+  const url = req.protocol + '://' + req.get('host');
+  let imagePath = url + '/images/' + req.file.filename;
   let post = new Post({
     title: req.body.title,
-    content: req.body.content
+    content: req.body.content,
+    imagePath: imagePath
   });
   post.save().then(newPost => {
     res.status(201).json({
       message: 'Post(\#' + newPost._id + ') added successfully.',
-      postId: newPost._id
+      post: {
+        ...newPost,
+        id: newPost._id
+      }
     });
   });
 
 });
 
-router.patch('/:id', (req, res, next) => {
+router.patch('/:id', multer({storage: storageConfiguration}).single('image'), (req, res, next) => {
+  let imagePath = req.body.imagePath;
+  if(req.file){
+    const url = req.protocol + '://' + req.get('host');
+    imagePath = url + '/images/' + req.file.filename;
+  }
+
   const post = new Post({
     _id: req.params.id,
     title: req.body.title,
-    content: req.body.content
+    content: req.body.content,
+    imagePath: imagePath
   });
   Post.updateOne({_id: req.params.id}, post).then(result => {
     console.log(result);
@@ -34,12 +70,46 @@ router.patch('/:id', (req, res, next) => {
   });
 })
 
+router.delete('/:id', (req, res, next) => {
+  const postId = req.params.id;
+  Post.deleteOne({_id: postId}).then(
+    result => {
+      console.log(result);
+    }
+  );
+  res.status(200).json({
+    message: 'Post with ' + postId + ' deleted.'
+  });
+});
+
 router.get('', (req, res, next) => {
-  Post.find()
-    .then(fetchedPosts => {
+  const pageSize = +req.query.pagesize;
+  const currentPage = +req.query.page;
+  const postQuery = Post.find();
+  let documents;
+  if(pageSize && currentPage){
+    postQuery
+      .skip(pageSize * (currentPage - 1))
+      .limit(pageSize);
+  }
+  postQuery.then(fetchedPosts => {
+      documents = fetchedPosts;
+      return Post.countDocuments();
+    }).then(count => {
       res.status(200).json({
         message: 'Posts successfully fetched!',
-        posts: fetchedPosts
+        posts: documents,
+        count: count
+      });
+    });
+
+});
+
+router.get('/totalCount', (req, res, next) => {
+  Post.find().then(data => {
+      res.status(200).json({
+        message: 'Posts-size successfully fetched!',
+        size: data.length
       });
     });
 
@@ -59,18 +129,6 @@ router.get('/:id', (req, res, next) => {
       })
     }
   })
-});
-
-router.delete('/:id', (req, res, next) => {
-  const postId = req.params.id;
-  Post.deleteOne({_id: postId}).then(
-    result => {
-      console.log(result);
-    }
-  );
-  res.status(200).json({
-    message: 'Post with ' + postId + ' deleted.'
-  });
 });
 
 module.exports = router;
