@@ -3,6 +3,7 @@ import { Post } from '../post.model';
 import { PostService } from '../post.service';
 import { Subscription } from 'rxjs';
 import { PageEvent } from '@angular/material';
+import { AuthenticationService } from 'src/app/authentication/authentication.service';
 
 @Component({
   selector: 'app-post-list',
@@ -11,14 +12,20 @@ import { PageEvent } from '@angular/material';
 })
 export class PostListComponent implements OnInit, OnDestroy {
   posts: Post[] = [];
+  private statusSubscription: Subscription;
   private postSubscription: Subscription;
   public isLoading: boolean = false;
+  public isUserLogged: boolean = false;
   public totalPost = 10;
   public postPerPage = 2;
   public pageSizeOptions = [1, 2, 5, 10];
   public currentPage = 1;
+  public userId: string = '';
 
-  constructor(private _postsService: PostService) {}
+  constructor(
+    private _postsService: PostService,
+    private _authenticationService: AuthenticationService
+  ) {}
 
   ngOnInit(){
     this.isLoading = true;
@@ -28,12 +35,21 @@ export class PostListComponent implements OnInit, OnDestroy {
           this.isLoading = false;
           this.posts = data.posts;
           this.totalPost = data.postsCount;
+          this.isUserLogged = this._authenticationService.isUserAthenticated();
         }
       );
+    this.userId = this._authenticationService.getUserId();
+    this.isUserLogged = this._authenticationService.isUserAthenticated();
+    this.statusSubscription = this._authenticationService.getStatusListener()
+      .subscribe(isAuth => {
+        this.isUserLogged = isAuth;
+        this.userId = this._authenticationService.getUserId();
+      });
   }
 
   ngOnDestroy(){
     this.postSubscription.unsubscribe();
+    this.statusSubscription.unsubscribe();
   }
 
   onDelete(postId: string){

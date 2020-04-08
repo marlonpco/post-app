@@ -12,8 +12,10 @@ export class PostService {
   private postsCount: number = 0;
   private postsUpdated = new Subject<{posts: Post[], postsCount: number}>();
 
-  constructor(private _http: HttpClient,
-    private _router: Router) { }
+  constructor(
+    private _http: HttpClient,
+    private _router: Router
+  ) { }
 
   getPostsTotalCount(){
     return this._http.get<{message: string, size: number}>('http://localhost:3000/api/posts/totalCount');
@@ -28,7 +30,8 @@ export class PostService {
             id: post._id,
             title: post.title,
             content: post.content,
-            imagePath: post.imagePath
+            imagePath: post.imagePath,
+            creator: post.creator
           };
         }),
         count: data.count};
@@ -41,7 +44,9 @@ export class PostService {
   }
 
   getPost(id: string){
-    return this._http.get<{message: string, post: {_id: string, title: string, content: string, imagePath: string}}>
+    return this._http.get<{
+      message: string,
+      post: {_id: string, title: string, content: string, imagePath: string, creator: string}}>
       ('http://localhost:3000/api/posts/' + id);
   }
 
@@ -65,7 +70,7 @@ export class PostService {
     }>('http://localhost:3000/api/posts', postData)
       .subscribe((data) => {
         console.log(data.message);
-        this.routeToMain();
+        this.routeToPostList();
       });
   }
 
@@ -88,7 +93,7 @@ export class PostService {
     this._http.patch<{message: string}>('http://localhost:3000/api/posts/' + post.id, postData).subscribe(
       data => {
         console.log(data.message);
-        this.routeToMain();
+        this.routeToPostList();
       }
     );
   }
@@ -104,8 +109,8 @@ export class PostService {
       });
   }
 
-  private routeToMain(){
-    this._router.navigate(['/']);
+  routeToPostList(){
+    this._router.navigate(['/list']);
   }
 
   private updateDisplay(){
