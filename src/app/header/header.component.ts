@@ -1,34 +1,33 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { AuthenticationService } from '../authentication/authentication.service';
-import { Subscription } from 'rxjs';
+import { Component, OnInit, OnDestroy } from "@angular/core";
+import { Subscription } from "rxjs";
+
+import { AuthService } from "../auth/auth.service";
 
 @Component({
-  selector: 'app-header',
-  templateUrl: './header.component.html',
-  styleUrls: ['./header.component.css']
+  selector: "app-header",
+  templateUrl: "./header.component.html",
+  styleUrls: ["./header.component.css"]
 })
 export class HeaderComponent implements OnInit, OnDestroy {
-  private statusSubscription: Subscription;
-  public isUserLogged: boolean = false;
+  userIsAuthenticated = false;
+  private authListenerSubs: Subscription;
 
-  constructor(
-    private _authenticationService: AuthenticationService
-  ){}
+  constructor(private authService: AuthService) {}
 
-  ngOnInit(){
-    this.isUserLogged = this._authenticationService.isUserAthenticated();
-    this.statusSubscription = this._authenticationService.getStatusListener()
-      .subscribe(isAuth => {
-        this.isUserLogged = isAuth;
+  ngOnInit() {
+    this.userIsAuthenticated = this.authService.getIsAuth();
+    this.authListenerSubs = this.authService
+      .getAuthStatusListener()
+      .subscribe(isAuthenticated => {
+        this.userIsAuthenticated = isAuthenticated;
       });
   }
 
-  ngOnDestroy(){
-    this.statusSubscription.unsubscribe();
+  onLogout() {
+    this.authService.logout();
   }
 
-  onLogout(){
-    this.isUserLogged = false;
-    this._authenticationService.logout();
+  ngOnDestroy() {
+    this.authListenerSubs.unsubscribe();
   }
 }
